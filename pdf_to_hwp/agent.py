@@ -185,6 +185,125 @@ class PDFToHWPAgent:
 
         return results
 
+    def merge_pdfs(
+        self,
+        pdf_paths: List[str],
+        output_path: str,
+        show_progress: bool = True,
+    ) -> str:
+        """
+        여러 PDF 파일을 하나의 HWP 파일로 병합
+
+        Args:
+            pdf_paths: PDF 파일 경로 리스트 (순서대로 병합됨)
+            output_path: 출력 HWP 파일 경로
+            show_progress: 진행 상황 표시 여부
+
+        Returns:
+            생성된 HWP 파일 경로
+        """
+        if not pdf_paths:
+            raise ValueError("병합할 PDF 파일이 없습니다.")
+
+        # 입력 파일들 확인
+        for pdf_path in pdf_paths:
+            if not os.path.exists(pdf_path):
+                raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {pdf_path}")
+            if not pdf_path.lower().endswith('.pdf'):
+                raise ValueError(f"PDF 파일이 아닙니다: {pdf_path}")
+
+        output_path = os.path.abspath(output_path)
+
+        # 임시 디렉토리 생성
+        temp_dir = tempfile.mkdtemp(prefix="pdf_merge_")
+        self._temp_dirs.append(temp_dir)
+
+        try:
+            all_images = []
+            total_pages = 0
+
+            # 각 PDF의 페이지 수 미리 계산
+            pdf_page_counts = []
+            for pdf_path in pdf_paths:
+                count = self.pdf_converter.get_page_count(pdf_path)
+                pdf_page_counts.append(count)
+                total_pages += count
+
+            if show_progress:
+                print(f"\n📚 병합할 PDF: {len(pdf_paths)}개")
+                print(f"📊 총 페이지 수: {total_pages}페이지")
+                print(f"\n{'='*50}")
+
+            # 각 PDF를 이미지로 변환
+            for i, (pdf_path, page_count) in enumerate(zip(pdf_paths, pdf_page_counts)):
+                if show_progress:
+                    print(f"\n📄 [{i + 1}/{len(pdf_paths)}] {os.path.basename(pdf_path)} ({page_count}페이지)")
+
+                self._report_progress(
+                    i, len(pdf_paths),
+                    f"PDF 변환 중: {os.path.basename(pdf_path)}"
+                )
+
+                # PDF별 임시 디렉토리
+                pdf_temp_dir = os.path.join(temp_dir, f"pdf_{i}")
+                os.makedirs(pdf_temp_dir, exist_ok=True)
+
+                # PDF를 이미지로 변환
+                results = self.pdf_converter.convert_all_pages(
+                    pdf_path,
+                    output_dir=pdf_temp_dir,
+                    show_progress=show_progress,
+                )
+
+                # 이미지 경로 수집
+                for _, _, img_path in results:
+                    all_images.append(img_path)
+
+            # HWP 파일 생성
+            if show_progress:
+                print(f"\n{'='*50}")
+                print(f"📝 HWP 파일 생성 중... (총 {len(all_images)}페이지)")
+
+            self._report_progress(
+                len(pdf_paths), len(pdf_paths) + 1,
+                "HWP 파일 생성 중..."
+            )
+
+            final_path = self.hwp_generator.create_hwp_from_images(
+                all_images,
+                output_path,
+                show_progress=show_progress,
+            )
+
+            if show_progress:
+                print(f"\n✅ 병합 완료: {final_path}")
+
+            return final_path
+
+        finally:
+            if not self.keep_temp_files:
+                self._cleanup()
+
+    def get_pdf_info(self, pdf_path: str) -> dict:
+        """
+        PDF 파일 정보 조회
+
+        Args:
+            pdf_path: PDF 파일 경로
+
+        Returns:
+            PDF 정보 딕셔너리 (page_count, file_size, filename)
+        """
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {pdf_path}")
+
+        return {
+            "filename": os.path.basename(pdf_path),
+            "filepath": os.path.abspath(pdf_path),
+            "page_count": self.pdf_converter.get_page_count(pdf_path),
+            "file_size": os.path.getsize(pdf_path),
+        }
+
     def _cleanup(self) -> None:
         """임시 파일 정리"""
         for temp_dir in self._temp_dirs:

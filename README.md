@@ -7,6 +7,7 @@ PDF 파일을 이미지화하여 HWP(한글 워드프로세서) 파일로 변환
 - PDF의 각 페이지를 고해상도 이미지로 변환
 - 변환된 이미지를 HWP 문서에 페이지별로 삽입
 - 일괄 변환 지원 (여러 PDF 파일 동시 처리)
+- **여러 PDF 병합**: 여러 PDF를 하나의 HWP로 병합 (순서 선택 가능)
 - CLI 및 Python API 지원
 - 진행 상황 실시간 표시
 
@@ -70,6 +71,24 @@ python main.py batch doc1.pdf doc2.pdf doc3.pdf
 python main.py batch *.pdf -o ./converted/
 ```
 
+#### 여러 PDF 병합 (하나의 HWP로)
+
+```bash
+# 기본 사용법 (대화형 순서 선택)
+python main.py merge doc1.pdf doc2.pdf doc3.pdf -o merged.hwp
+
+# 순서 선택 없이 바로 병합
+python main.py merge *.pdf -o output.hwp --no-reorder
+```
+
+**대화형 순서 선택 명령어:**
+- `3 1 2 4` - 순서 직접 지정 (3번을 맨 앞으로)
+- `swap 1 3` - 1번과 3번 위치 교환
+- `move 3 1` - 3번을 1번 위치로 이동
+- `reverse` - 전체 순서 뒤집기
+- `ok` 또는 `확인` - 현재 순서로 병합 시작
+- `cancel` 또는 `취소` - 병합 취소
+
 #### PDF 정보 확인
 
 ```bash
@@ -81,11 +100,18 @@ python main.py info document.pdf
 #### 간단한 사용
 
 ```python
-from pdf_to_hwp import convert_pdf_to_hwp
+from pdf_to_hwp import convert_pdf_to_hwp, merge_pdfs_to_hwp
 
 # 단일 파일 변환
 hwp_path = convert_pdf_to_hwp("document.pdf")
 print(f"변환 완료: {hwp_path}")
+
+# 여러 PDF를 하나로 병합
+merged_path = merge_pdfs_to_hwp(
+    ["doc1.pdf", "doc2.pdf", "doc3.pdf"],
+    "merged.hwp"
+)
+print(f"병합 완료: {merged_path}")
 ```
 
 #### 에이전트 사용
@@ -110,6 +136,12 @@ with agent:
     results = agent.convert_batch(
         ["doc1.pdf", "doc2.pdf"],
         output_dir="./output/"
+    )
+
+    # 여러 PDF를 하나의 HWP로 병합
+    merged = agent.merge_pdfs(
+        ["doc1.pdf", "doc2.pdf", "doc3.pdf"],
+        "merged.hwp"
     )
 ```
 
