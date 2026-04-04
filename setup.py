@@ -41,6 +41,7 @@ setup(
     entry_points={
         "console_scripts": [
             "pdf-to-hwp=main:main",
+            "pdf-integrator=pdf_integrator:main",
         ],
     },
 )

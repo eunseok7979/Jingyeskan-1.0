@@ -15,3 +15,6 @@ click>=8.1.0
 
 # Progress bar
 tqdm>=4.66.0
+
+# GUI drag-and-drop support
+tkinterdnd2>=0.3.0
